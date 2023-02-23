@@ -1,0 +1,211 @@
+from flask import Flask, request, jsonify
+from flask_mysqldb import MySQL
+
+
+app = Flask(__name__)
+app.config['MYSQL_HOST'] = 'localhost'
+app.config['MYSQL_USER'] = 'root'
+app.config['MYSQL_PASSWORD'] = ''
+app.config['MYSQL_DB'] = 'prochecked'
+
+mysql = MySQL(app)
+
+app.app_context().push()
+conn = mysql.connection
+
+# Create user and projects tables if they don't exist
+cursor = conn.cursor()
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL
+    )
+""")
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS projects (
+      id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
+    )   
+""")
+conn.commit()
+
+
+@app.route("/api/users", methods=['GET'])
+def list_all_users():
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM user")
+    desc = cursor.description
+    return jsonify([dict(zip([col[0] for col in desc], row)) for row in cursor.fetchall()])
+
+
+@app.route('/api/users', methods=['POST'])
+def add_user():
+    name = request.json['name']
+    password = request.json['password']
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO user (name, password) VALUES (%s, %s)", (name, password))
+    conn.commit()
+    return {
+        'message': "user added successfully",
+    }, 201
+
+
+@app.route('/api/users/<int:id>', methods=['GET'])
+def get_user(id):
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM user WHERE id = %s', (id,))
+    desc = [d[0] for d in cursor.description]
+    user = cursor.fetchone()
+    if not user:
+        return {'message': "user not found"}, 404
+    return dict(zip(desc, user))
+
+
+@app.route('/api/users/signin', methods=['POST'])
+def sign_in():
+    cursor = conn.cursor()
+    name = request.json['name']
+    password = request.json['password']
+    cursor.execute(
+        'SELECT * FROM user WHERE name=%s AND password=%s', (name, password)
+    )
+    user = cursor.fetchone()
+    if not user:
+        return {'message': "user not found"}, 404
+    desc = [d[0] for d in cursor.description]
+    return dict(zip(desc, user))
+
+
+@app.route('/api/users/<int:id>', methods=['DELETE'])
+def delete_user(id: int):
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM user WHERE id = %s', (id,))
+    user_exists = cursor.fetchone()[0]
+
+    if user_exists:
+        cursor.execute('DELETE FROM projects WHERE user_id = %s', (id,))
+        cursor.execute('DELETE FROM user WHERE id = %s', (id,))
+        return {"message": "user deleted"}
+    else:
+        return {"error": "user not found"}, 404
+
+
+@app.route('/api/users/<int:id>', methods=['PUT'])
+def update_user(id: int):
+    data = request.json
+    if not data:
+        return {"error": "no data provided"}, 400
+
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM user WHERE id = %s', (id,))
+    user_exists = cursor.fetchone()[0]
+
+    if not user_exists:
+        return {"error": "user not found"}, 404
+
+    cursor.execute(
+        'UPDATE user SET name = %s, password = %s WHERE id = %s', (data['name'], data['password'], id))
+    conn.commit()
+
+    return {"message": "user updated"}
+
+
+@app.route('/api/users/<int:user_id>/projects', methods=['POST'])
+def add_project(user_id: int):
+    data = request.json
+    if not data:
+        return {"error": "no data provided"}, 400
+
+    # Insert new project into table
+    cursor = conn.cursor()
+    insert_query = "INSERT INTO projects (user_id, name, description) VALUES (%s, %s, %s)"
+    cursor.execute(insert_query, (user_id, data['name'], data['description']))
+    conn.commit()
+
+    return {"message": "project added"}
+
+
+@app.route('/api/users/<int:user_id>/projects/<int:project_id>', methods=['GET'])
+def get_project(user_id: int, project_id: int):
+    cursor = conn.cursor()
+    select_query = "SELECT * FROM projects WHERE id = %s AND user_id = %s"
+    cursor.execute(select_query, (project_id, user_id))
+    project = cursor.fetchone()
+    if not project:
+        return {"error": "project not found"}, 404
+
+    return {
+        "id": project[0],
+        "user_id": project[1],
+        "name": project[2],
+        "description": project[3]
+    }
+
+
+@app.route('/api/users/<int:user_id>/projects', methods=['GET'])
+def get_all_projects(user_id: int):
+    cursor = conn.cursor()
+    select_query = "SELECT * FROM projects WHERE user_id = %s"
+    cursor.execute(select_query, (user_id,))
+    projects = cursor.fetchall()
+
+    result = []
+    for project in projects:
+        result.append({
+            "id": project[0],
+            "user_id": project[1],
+            "name": project[2],
+            "description": project[3]
+        })
+
+    return {"projects": result}
+
+
+@app.route('/api/users/<int:user_id>/projects/<int:project_id>', methods=['PUT'])
+def edit_project(user_id: int, project_id: int):
+    data = request.json
+    if not data:
+        return {"error": "no data provided"}, 400
+
+    # Check if project exists
+    cursor = conn.cursor()
+    select_query = "SELECT COUNT(*) FROM projects WHERE id = %s AND user_id = %s"
+    cursor.execute(select_query, (project_id, user_id))
+    project_exists = cursor.fetchone()[0]
+    if not project_exists:
+        return {"error": "project not found"}, 404
+
+    # Update project data
+    update_query = "UPDATE project SET name = %s, description = %s WHERE id = %s AND user_id = %s"
+    cursor.execute(
+        update_query, (data['name'], data['description'], project_id, user_id))
+    conn.commit()
+
+    return {"message": "project updated"}
+
+
+@app.route('/api/users/<int:user_id>/projects/<int:project_id>', methods=['DELETE'])
+def delete_project(user_id: int, project_id: int):
+    # Check if project exists
+    cursor = conn.cursor()
+    select_query = "SELECT COUNT(*) FROM projects WHERE id = %s AND user_id = %s"
+    cursor.execute(select_query, (project_id, user_id))
+    project_exists = cursor.fetchone()[0]
+    if not project_exists:
+        return {"error": "project not found"}, 404
+
+    # Delete project
+    delete_query = "DELETE FROM projects WHERE id = %s AND user_id = %s"
+    cursor.execute(delete_query, (project_id, user_id))
+    conn.commit()
+
+    return {"message": "project deleted"}
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
