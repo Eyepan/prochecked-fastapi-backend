@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request
 import mysql.connector
 from uuid import uuid4
-
+from flask_cors import cross_origin
 app = Flask(__name__)
+app.config['CORS_HEADERS'] = 'Content-Type'
 
 config = {
     "user": "panpanpan",
@@ -32,8 +33,7 @@ cursor.execute(
     CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY,
         email VARCHAR(255) NOT NULL UNIQUE,
-        password VARCHAR(255) NOT NULL,
-        type VARCHAR(20) DEFAULT 'Team Member'
+        password VARCHAR(255) NOT NULL
     );
     """
 )
@@ -45,10 +45,11 @@ cursor.execute(
         title VARCHAR(255) NOT NULL,
         description TEXT,
         team_leader_id VARCHAR(36),
-        FOREIGN KEY (team_leader_id) REFERENCES users(id)
+        FOREIGN KEY (team_leader_id) REFERENCES users(id) ON DELETE CASCADE
     );
     """
 )
+
 
 cursor.execute(
     """
@@ -57,17 +58,21 @@ cursor.execute(
         title VARCHAR(255) NOT NULL,
         description TEXT,
         project_id VARCHAR(36),
+        assigned_user_id VARCHAR(36),
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+        FOREIGN KEY (assigned_user_id) REFERENCES users(id) ON DELETE CASCADE,
         created DATE NOT NULL,
         deadline DATE NOT NULL
     );
     """
 )
+
 mysql.commit()
 cursor.close()
 
 
 @app.route('/api/users')
+@cross_origin()
 def list_users():
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users")
@@ -80,25 +85,26 @@ def list_users():
 
 
 @app.route('/api/users', methods=['POST'])
+@cross_origin()
 def add_user():
     cursor = mysql.cursor()
     if not request.json or not 'email' in request.json or not 'password' in request.json:
         return {"error": "missing fields"}, 400
     email = request.json['email']
     password = request.json['password']
-    userType = request.json.get('type', 'Team Member')
     cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
     if user:
         return {"error": "user with the given email already exists"}, 409
     cursor.execute(
-        "INSERT INTO users (id, email, password, type) VALUES (%s, %s, %s, %s)", (str(uuid4()), email, password, userType))
+        "INSERT INTO users (id, email, password) VALUES (%s, %s, %s)", (str(uuid4()), email, password))
     mysql.commit()
     cursor.close()
     return {"message": "user successfully added"}, 200
 
 
 @app.route('/api/users/<id>', methods=['GET'])
+@cross_origin()
 def get_user(id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
@@ -111,6 +117,7 @@ def get_user(id):
 
 
 @app.route("/api/users/signin", methods=['POST'])
+@cross_origin()
 def sign_in():
     cursor = mysql.cursor()
     if not request.json or not 'email' in request.json or not 'password' in request.json:
@@ -128,6 +135,7 @@ def sign_in():
 
 
 @app.route('/api/users/<id>', methods=['PUT'])
+@cross_origin()
 def update_user(id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
@@ -138,16 +146,15 @@ def update_user(id):
         return {"error": "missing fields"}, 400
     email = request.json['email']
     password = request.json['password']
-    userType = request.json.get('type', 'Team Member')
     cursor.execute(
-        "UPDATE users SET email = %s, password = %s, type = %s WHERE id = %s",
-        (email, password, userType, id))
+        "UPDATE users SET email = %s, password = %s WHERE id = %s",
+        (email, password, id))
     mysql.commit()
     cursor.close()
     return {"message": "user successfully updated"}, 200
 
-
 @app.route('/api/users/<id>', methods=['DELETE'])
+@cross_origin()
 def delete_user(id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
@@ -159,8 +166,8 @@ def delete_user(id):
     cursor.close()
     return {"message": "user successfully deleted"}, 200
 
-
 @app.route('/api/users/<user_id>/projects', methods=['POST'])
+@cross_origin()
 def create_project(user_id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -178,8 +185,8 @@ def create_project(user_id):
     cursor.close()
     return {"message": "project successfully created"}, 200
 
-
 @app.route('/api/users/<user_id>/projects')
+@cross_origin()
 def get_all_projects_for_user(user_id):
     cursor = mysql.cursor()
     cursor.execute(
@@ -193,6 +200,7 @@ def get_all_projects_for_user(user_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['GET'])
+@cross_origin()
 def get_project(user_id, project_id):
     cursor = mysql.cursor()
     cursor.execute(
@@ -206,6 +214,7 @@ def get_project(user_id, project_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['PUT'])
+@cross_origin()
 def update_project(user_id, project_id):
     cursor = mysql.cursor()
     cursor.execute(
@@ -226,6 +235,7 @@ def update_project(user_id, project_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['DELETE'])
+@cross_origin()
 def delete_project(user_id, project_id):
     cursor = mysql.cursor()
     cursor.execute(
@@ -240,6 +250,7 @@ def delete_project(user_id, project_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks', methods=['POST'])
+@cross_origin()
 def create_task(user_id, project_id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -264,6 +275,7 @@ def create_task(user_id, project_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>', methods=['GET'])
+@cross_origin()
 def get_task(user_id, project_id, task_id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -284,6 +296,7 @@ def get_task(user_id, project_id, task_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks', methods=['GET'])
+@cross_origin()
 def get_all_tasks_for_project(user_id, project_id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -304,6 +317,7 @@ def get_all_tasks_for_project(user_id, project_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>', methods=['PUT'])
+@cross_origin()
 def update_task(user_id, project_id, task_id):
     cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
@@ -342,6 +356,7 @@ def update_task(user_id, project_id, task_id):
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>', methods=['DELETE'])
+@cross_origin()
 def delete_task(user_id, project_id, task_id):
     cursor = mysql.cursor()
     # Check if user exists
