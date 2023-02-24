@@ -1,21 +1,32 @@
 from flask import Flask, jsonify, request
-from flask_mysqldb import MySQL
-from routes import *
+import mysql.connector
 from uuid import uuid4
 
 app = Flask(__name__)
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'prochecked'
 
-mysql = MySQL(app)
+config = {
+    "user": "panpanpan",
+    "password": "mynameisiyappan",
+    "host": "panpanpan.mysql.pythonanywhere-services.com",
+    "database": "panpanpan$prochecked",
+    "port": 3306,
+    "raise_on_warnings": False
+}
+
+if __name__ == "__main__":
+    config = {
+        "user": "root",
+        "password": "",
+        "host": "localhost",
+        "database": "prochecked",
+        "port": 3306,
+        "raise_on_warnings": False
+    }
 
 app.app_context().push()
-conn = mysql.connection
+mysql = mysql.connector.connect(**config)
 
-
-cursor = conn.cursor()
+cursor = mysql.cursor()
 cursor.execute(
     """
     CREATE TABLE IF NOT EXISTS users (
@@ -52,13 +63,13 @@ cursor.execute(
     );
     """
 )
-conn.commit()
+mysql.commit()
 cursor.close()
 
 
 @app.route('/api/users')
 def list_users():
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users")
     users = cursor.fetchall()
     desc = cursor.description
@@ -70,7 +81,7 @@ def list_users():
 
 @app.route('/api/users', methods=['POST'])
 def add_user():
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     if not request.json or not 'email' in request.json or not 'password' in request.json:
         return {"error": "missing fields"}, 400
     email = request.json['email']
@@ -81,15 +92,15 @@ def add_user():
     if user:
         return {"error": "user with the given email already exists"}, 409
     cursor.execute(
-        "INSERT INTO users (id, email, password, type) VALUES (%s, %s, %s, %s)", (uuid4(), email, password, userType))
-    conn.commit()
+        "INSERT INTO users (id, email, password, type) VALUES (%s, %s, %s, %s)", (str(uuid4()), email, password, userType))
+    mysql.commit()
     cursor.close()
     return {"message": "user successfully added"}, 200
 
 
 @app.route('/api/users/<id>', methods=['GET'])
 def get_user(id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
     user = cursor.fetchone()
     if not user:
@@ -101,7 +112,7 @@ def get_user(id):
 
 @app.route("/api/users/signin", methods=['POST'])
 def sign_in():
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     if not request.json or not 'email' in request.json or not 'password' in request.json:
         return {"error": "missing fields"}, 400
     email = request.json['email']
@@ -118,7 +129,7 @@ def sign_in():
 
 @app.route('/api/users/<id>', methods=['PUT'])
 def update_user(id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
     user = cursor.fetchone()
     if not user:
@@ -131,27 +142,27 @@ def update_user(id):
     cursor.execute(
         "UPDATE users SET email = %s, password = %s, type = %s WHERE id = %s",
         (email, password, userType, id))
-    conn.commit()
+    mysql.commit()
     cursor.close()
     return {"message": "user successfully updated"}, 200
 
 
 @app.route('/api/users/<id>', methods=['DELETE'])
 def delete_user(id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (id,))
     user = cursor.fetchone()
     if not user:
         return {"error": "user not found"}, 404
     cursor.execute("DELETE FROM users WHERE id = %s", (id,))
-    conn.commit()
+    mysql.commit()
     cursor.close()
     return {"message": "user successfully deleted"}, 200
 
 
 @app.route('/api/users/<user_id>/projects', methods=['POST'])
 def create_project(user_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     if not user:
@@ -162,15 +173,15 @@ def create_project(user_id):
     description = request.json.get('description', '')
     cursor.execute(
         "INSERT INTO projects (id, title, description, team_leader_id) VALUES (%s, %s, %s, %s)",
-        (uuid4(), title, description, user_id))
-    conn.commit()
+        (str(uuid4()), title, description, user_id))
+    mysql.commit()
     cursor.close()
     return {"message": "project successfully created"}, 200
 
 
 @app.route('/api/users/<user_id>/projects')
 def get_all_projects_for_user(user_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute(
         "SELECT * FROM projects WHERE team_leader_id = %s", (user_id,))
     projects = cursor.fetchall()
@@ -183,7 +194,7 @@ def get_all_projects_for_user(user_id):
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['GET'])
 def get_project(user_id, project_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute(
         "SELECT * FROM projects WHERE id = %s AND team_leader_id = %s", (project_id, user_id))
     project = cursor.fetchone()
@@ -196,7 +207,7 @@ def get_project(user_id, project_id):
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['PUT'])
 def update_project(user_id, project_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute(
         "SELECT * FROM projects WHERE id = %s AND team_leader_id = %s", (project_id, user_id))
     project = cursor.fetchone()
@@ -209,28 +220,28 @@ def update_project(user_id, project_id):
     cursor.execute(
         "UPDATE projects SET title = %s, description = %s WHERE id = %s",
         (title, description, project_id))
-    conn.commit()
+    mysql.commit()
     cursor.close()
     return {"message": "project successfully updated"}, 200
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['DELETE'])
 def delete_project(user_id, project_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute(
         "SELECT * FROM projects WHERE id = %s AND team_leader_id = %s", (project_id, user_id))
     project = cursor.fetchone()
     if not project:
         return {"error": "project not found"}, 404
     cursor.execute("DELETE FROM projects WHERE id = %s", (project_id,))
-    conn.commit()
+    mysql.commit()
     cursor.close()
     return {"message": "project successfully deleted"}, 200
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks', methods=['POST'])
 def create_task(user_id, project_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     if not user:
@@ -246,15 +257,15 @@ def create_task(user_id, project_id):
     created = request.json['created']
     deadline = request.json['deadline']
     cursor.execute(
-        "INSERT INTO tasks (id, title, description, project_id, created, deadline) VALUES (%s, %s, %s, %s, %s, %s)", (uuid4(), title, description, project_id, created, deadline))
-    conn.commit()
+        "INSERT INTO tasks (id, title, description, project_id, created, deadline) VALUES (%s, %s, %s, %s, %s, %s)", (str(uuid4()), title, description, project_id, created, deadline))
+    mysql.commit()
     cursor.close()
     return {"message": "task successfully added"}, 200
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>', methods=['GET'])
 def get_task(user_id, project_id, task_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     if not user:
@@ -274,7 +285,7 @@ def get_task(user_id, project_id, task_id):
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks', methods=['GET'])
 def get_all_tasks_for_project(user_id, project_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     if not user:
@@ -294,7 +305,7 @@ def get_all_tasks_for_project(user_id, project_id):
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>', methods=['PUT'])
 def update_task(user_id, project_id, task_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
     if not user:
@@ -325,14 +336,14 @@ def update_task(user_id, project_id, task_id):
     deadline = request.json.get('deadline', task[6])
     cursor.execute("UPDATE tasks SET title = %s, description = %s, created = %s, deadline = %s WHERE id = %s",
                    (title, description, created, deadline, task_id))
-    conn.commit()
+    mysql.commit()
     cursor.close()
     return {"message": "task successfully updated"}, 200
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>', methods=['DELETE'])
 def delete_task(user_id, project_id, task_id):
-    cursor = conn.cursor()
+    cursor = mysql.cursor()
     # Check if user exists
     cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
     user = cursor.fetchone()
@@ -357,7 +368,7 @@ def delete_task(user_id, project_id, task_id):
     if user_id != project[3] and user_id != task[4]:
         return {"error": "user not authorized to delete task"}, 401
     cursor.execute("DELETE FROM tasks WHERE id = %s", (task_id,))
-    conn.commit()
+    mysql.commit()
     cursor.close()
     return {"message": "task successfully deleted"}, 200
 
