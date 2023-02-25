@@ -33,6 +33,7 @@ cursor.execute(
     CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY,
         email VARCHAR(255) NOT NULL UNIQUE,
+        name VARCHAR(255) NOT NULL,
         password VARCHAR(255) NOT NULL
     );
     """
@@ -45,6 +46,9 @@ cursor.execute(
         title VARCHAR(255) NOT NULL,
         description TEXT,
         team_leader_id VARCHAR(36),
+        created VARCHAR(50) NOT NULL,
+        deadline VARCHAR(50) NOT NULL,
+        completed BOOLEAN NOT NULL DEFAULT FALSE,
         FOREIGN KEY (team_leader_id) REFERENCES users(id) ON DELETE CASCADE
     );
     """
@@ -59,10 +63,11 @@ cursor.execute(
         description TEXT,
         project_id VARCHAR(36),
         assigned_user_id VARCHAR(36),
+        created VARCHAR(50) NOT NULL,
+        deadline VARCHAR(50) NOT NULL,
+        completed BOOLEAN NOT NULL DEFAULT FALSE,
         FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-        FOREIGN KEY (assigned_user_id) REFERENCES users(id) ON DELETE CASCADE,
-        created DATE NOT NULL,
-        deadline DATE NOT NULL
+        FOREIGN KEY (assigned_user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     """
 )
@@ -88,16 +93,17 @@ def list_users():
 @cross_origin()
 def add_user():
     cursor = mysql.cursor()
-    if not request.json or not 'email' in request.json or not 'password' in request.json:
+    if not request.json or not 'email' in request.json or not 'password' in request.json or not 'name' in request.json:
         return {"error": "missing fields"}, 400
     email = request.json['email']
     password = request.json['password']
+    name = request.json['name']
     cursor.execute("SELECT * FROM users WHERE email = %s", (email,))
     user = cursor.fetchone()
     if user:
         return {"error": "user with the given email already exists"}, 409
     cursor.execute(
-        "INSERT INTO users (id, email, password) VALUES (%s, %s, %s)", (str(uuid4()), email, password))
+        "INSERT INTO users (id, name, email, password) VALUES (%s, %s, %s, %s)", (str(uuid4()), name, email, password))
     mysql.commit()
     cursor.close()
     return {"message": "user successfully added"}, 200
@@ -142,16 +148,18 @@ def update_user(id):
     user = cursor.fetchone()
     if not user:
         return {"error": "user not found"}, 404
-    if not request.json or not 'email' in request.json or not 'password' in request.json:
+    if not request.json or not 'email' in request.json or not 'password' in request.json or not 'name' in request.json:
         return {"error": "missing fields"}, 400
     email = request.json['email']
     password = request.json['password']
+    name = request.json['name']
     cursor.execute(
-        "UPDATE users SET email = %s, password = %s WHERE id = %s",
-        (email, password, id))
+        "UPDATE users SET email = %s, password = %s, name = %s WHERE id = %s",
+        (email, password, name, id))
     mysql.commit()
     cursor.close()
     return {"message": "user successfully updated"}, 200
+
 
 @app.route('/api/users/<id>', methods=['DELETE'])
 @cross_origin()
@@ -166,6 +174,7 @@ def delete_user(id):
     cursor.close()
     return {"message": "user successfully deleted"}, 200
 
+
 @app.route('/api/users/<user_id>/projects', methods=['POST'])
 @cross_origin()
 def create_project(user_id):
@@ -174,16 +183,19 @@ def create_project(user_id):
     user = cursor.fetchone()
     if not user:
         return {"error": "user not found"}, 404
-    if not request.json or not 'title' in request.json:
+    if not request.json or not 'title' in request.json or 'created' not in request.json or 'deadline' not in request.json:
         return {"error": "missing fields"}, 400
     title = request.json['title']
     description = request.json.get('description', '')
+    created = request.json['created']
+    deadline = request.json['deadline']
     cursor.execute(
-        "INSERT INTO projects (id, title, description, team_leader_id) VALUES (%s, %s, %s, %s)",
-        (str(uuid4()), title, description, user_id))
+        "INSERT INTO projects (id, title, description, team_leader_id, created, deadline) VALUES (%s, %s, %s, %s, %s, %s)",
+        (str(uuid4()), title, description, user_id, created, deadline))
     mysql.commit()
     cursor.close()
     return {"message": "project successfully created"}, 200
+
 
 @app.route('/api/users/<user_id>/projects')
 @cross_origin()
@@ -223,15 +235,32 @@ def update_project(user_id, project_id):
     if not project:
         return {"error": "project not found"}, 404
     if not request.json or not 'title' in request.json:
-        return {"error": "missing fields"}, 400
+        return {"error": "missing fields. should atleast send title for updating"}, 400
     title = request.json['title']
     description = request.json.get('description', '')
+    deadline = request.json.get('deadline', '')
     cursor.execute(
-        "UPDATE projects SET title = %s, description = %s WHERE id = %s",
-        (title, description, project_id))
+        "UPDATE projects SET title = %s, description = %s, deadline = %s WHERE id = %s",
+        (title, description, deadline, project_id))
     mysql.commit()
     cursor.close()
     return {"message": "project successfully updated"}, 200
+
+
+@app.route('/api/users/<user_id>/projects/<project_id>/complete', methods=['PUT'])
+@cross_origin()
+def complete_project(user_id, project_id):
+    cursor = mysql.cursor()
+    cursor.execute(
+        "SELECT * FROM projects WHERE id = %s AND team_leader_id = %s", (project_id, user_id))
+    project = cursor.fetchone()
+    if not project:
+        return {"error": "project not found"}, 404
+    cursor.execute(
+        "UPDATE projects SET completed = %s WHERE id = %s", (True, project_id))
+    mysql.commit()
+    cursor.close()
+    return {"message": "project successfully marked as completed"}, 200
 
 
 @app.route('/api/users/<user_id>/projects/<project_id>', methods=['DELETE'])
@@ -386,6 +415,42 @@ def delete_task(user_id, project_id, task_id):
     mysql.commit()
     cursor.close()
     return {"message": "task successfully deleted"}, 200
+
+
+# create endpoint and function to mark task as complete
+@app.route('/api/users/<user_id>/projects/<project_id>/tasks/<task_id>/completed', methods=['PUT'])
+@cross_origin()
+def complete_task(user_id, project_id, task_id):
+    cursor = mysql.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    user = cursor.fetchone()
+    if not user:
+        return {"error": "user not found"}, 404
+
+    # Check if project exists
+    cursor.execute("SELECT * FROM projects WHERE id = %s", (project_id,))
+    project = cursor.fetchone()
+    if not project:
+        return {"error": "project not found"}, 404
+    # Check if task exists
+    cursor.execute("SELECT * FROM tasks WHERE id = %s", (task_id,))
+    task = cursor.fetchone()
+    if not task:
+        return {"error": "task not found"}, 404
+    # Check if task belongs to project
+    if task[3] != project_id:
+        return {"error": "task does not belong to project"}, 404
+    # Check if user is team leader of project or assigned to task
+    cursor.execute("SELECT * FROM users WHERE id = %s", (project[3],))
+    team_leader = cursor.fetchone()
+    if user_id != project[3] and user_id != task[4]:
+        return {"error": "user not authorized to modify task"}, 401
+    # Update task
+    cursor.execute(
+        "UPDATE tasks SET completed = %s WHERE id = %s", (True, task_id,))
+    mysql.commit()
+    cursor.close()
+    return {"message": "task successfully completed"}, 200
 
 
 if __name__ == '__main__':
