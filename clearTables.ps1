@@ -2,7 +2,6 @@
 Start-Process -FilePath "mysqld" -ArgumentList "--console" -NoNewWindow
 
 Start-Sleep -Seconds 5
-
 # Activate virtual environment
 $activatePath = "venv/Scripts/activate.ps1"
 if (Test-Path $activatePath) {
@@ -13,8 +12,8 @@ if (Test-Path $activatePath) {
 
 # Run Python app
 $pythonPath = "."
-if (Test-Path "$pythonPath/main.py") {
-    python "$pythonPath/main.py"
+if (Test-Path "$pythonPath/droptables.py") {
+    python "$pythonPath/droptables.py"
 } else {
     Write-Host "Python app not found."
 }
