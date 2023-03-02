@@ -43,8 +43,9 @@ def initDB():
       """
     )
 
+
     cursor.execute(
-        """
+    """
       CREATE TABLE IF NOT EXISTS tasks (
         task_id VARCHAR(36) PRIMARY KEY,
         project_id VARCHAR(36) NOT NULL,

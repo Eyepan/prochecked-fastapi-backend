@@ -53,22 +53,24 @@ async def get_task(user_id: str, project_id: str, task_id: str, response: Respon
     return dict(zip(task_model, task))
 
 
+@router.get("/{user_id}")
+async def get_user_tasks(user_id: str, response: Response):
+    conn = connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tasks WHERE user_id = %s", (user_id,))
+    results = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    if not results:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"error": "no tasks found for current user"}
+    return list(dict(zip(task_model, task)) for task in results)
+
+
 @router.get("/{user_id}/{project_id}")
 async def get_project_tasks(user_id: str, project_id: str, response: Response):
     conn = connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM projects WHERE user_id = %s AND project_id = %s",
-        (
-            user_id,
-            project_id,
-        ),
-    )
-    result = cursor.fetchone()
-
-    if not result:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return {"error": "project not found"}
     cursor.execute(
         "SELECT * from tasks WHERE project_id = %s ",
         (project_id,),
@@ -79,7 +81,7 @@ async def get_project_tasks(user_id: str, project_id: str, response: Response):
     if not result:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": "no tasks found for current project"}
-    return (dict(zip(task_model, task)) for task in result)
+    return list(dict(zip(task_model, task)) for task in result)
 
 
 @router.post("/{user_id}/{project_id}")
@@ -87,7 +89,7 @@ async def create_task(user_id: str, project_id: str, task: NewTask, response: Re
     conn = connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM projects WHERE user_id = %s AND project_id %s",
+        "SELECT * FROM projects WHERE user_id = %s AND project_id = %s",
         (user_id, project_id),
     )
     result = cursor.fetchone()

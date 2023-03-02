@@ -22,7 +22,7 @@ class User(BaseModel):
 class NewTask(BaseModel):
     project_id: str
     title: str
-    description: str | None = None
+    description: str
     due_date: str
     priority: int
     completed: int

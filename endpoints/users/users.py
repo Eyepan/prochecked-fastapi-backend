@@ -79,10 +79,10 @@ async def signin(user: UserAuth, response: Response):
         return {"error": "user not found"}
 
 
-# @router.put("/{user_id}")
-# async def update_user(user: NewUser, response: Response):
-#     response.status_code = status.HTTP_501_NOT_IMPLEMENTED
-#     return {"error": "not implemented yet"}
+@router.put("/{user_id}")
+async def update_user(user: NewUser, response: Response):
+    response.status_code = status.HTTP_501_NOT_IMPLEMENTED
+    return {"error": "not implemented yet"}
 
 
 @router.delete("/{user_id}")

@@ -11,7 +11,6 @@ class NewProject(BaseModel):
 
 class Project(BaseModel):
     project_id: str
-    user_id: str
     title: str
     description: Optional[str]
     created_at: str
