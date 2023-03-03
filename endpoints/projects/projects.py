@@ -73,11 +73,7 @@ async def add_user_project(user_id: str, project: NewProject, response: Response
     result = cursor.fetchone()
     cursor.close()
     conn.close()
-    if result:
-        return dict(zip(project_model, result))
-    else:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"error": "something went wrong"}
+    return dict(zip(project_model, result))
 
 
 @router.put("/{user_id}/{project_id}")
@@ -111,11 +107,7 @@ async def update_project(
     desc = [d[0] for d in cursor.description]
     cursor.close()
     conn.close()
-    if result:
-        return dict(zip(desc, result))
-    else:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"error": "something went wrong"}
+    return dict(zip(desc, result))
 
 
 @router.delete("/{user_id}/{project_id}")

@@ -57,14 +57,18 @@ async def get_task(user_id: str, project_id: str, task_id: str, response: Respon
 async def get_user_tasks(user_id: str, response: Response):
     conn = connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tasks WHERE user_id = %s", (user_id,))
-    results = cursor.fetchall()
+    cursor.execute("SELECT * FROM projects WHERE user_id = %s", (user_id,))
+    projects = cursor.fetchall()
+    if not projects:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"error": "no projects found for current user"}
+    tasks = []
+    for project in projects:
+        cursor.execute("SELECT * FROM tasks WHERE project_id = %s", (project[0],))
+        tasks += cursor.fetchall()
     cursor.close()
     conn.close()
-    if not results:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return {"error": "no tasks found for current user"}
-    return list(dict(zip(task_model, task)) for task in results)
+    return list(dict(zip(task_model, task)) for task in tasks)
 
 
 @router.get("/{user_id}/{project_id}")
@@ -78,9 +82,6 @@ async def get_project_tasks(user_id: str, project_id: str, response: Response):
     result = cursor.fetchall()
     cursor.close()
     conn.close()
-    if not result:
-        response.status_code = status.HTTP_404_NOT_FOUND
-        return {"error": "no tasks found for current project"}
     return list(dict(zip(task_model, task)) for task in result)
 
 
@@ -151,7 +152,7 @@ async def update_task(
             task_id,
         ),
     )
-    task = cursor.fetchone()
+    result = cursor.fetchone()
     if not task:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": "task not found"}
@@ -206,7 +207,13 @@ async def delete_task(user_id: str, project_id: str, task_id: str, response: Res
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": "project not found"}
 
-    cursor.execute("SELECT * FROM tasks WHERE task_id = %s AND project_id = %s")
+    cursor.execute(
+        "SELECT * FROM tasks WHERE task_id = %s AND project_id = %s",
+        (
+            task_id,
+            project_id,
+        ),
+    )
     result = cursor.fetchone()
     if not result:
         response.status_code = status.HTTP_404_NOT_FOUND

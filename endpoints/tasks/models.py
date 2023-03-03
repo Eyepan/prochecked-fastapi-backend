@@ -24,8 +24,8 @@ class UpdateTask(BaseModel):
     title: Optional[str]
     description: Optional[str]
     due_date: Optional[str]
-    priority: Optional[str]
-    completed: Optional[str]
+    priority: Optional[int]
+    completed: Optional[int]
 
 
 task_model = [
