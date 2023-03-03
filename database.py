@@ -1,13 +1,27 @@
 import mysql.connector
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Load environment variables
+MYSQLDATABASE = os.environ.get("MYSQLDATABASE")
+MYSQLHOST = os.environ.get("MYSQLHOST")
+MYSQLPASSWORD = os.environ.get("MYSQLPASSWORD")
+MYSQLPORT = os.environ.get("MYSQLPORT")
+MYSQLUSER = os.environ.get("MYSQLUSER")
+
+
+# Create config dictionary
 
 
 def connection():
     config = {
-        "user": "root",
-        "password": "",
-        "host": "localhost",
-        "database": "prochecked",
-        "port": 3306,
+        "user": MYSQLUSER,
+        "password": MYSQLPASSWORD,
+        "host": MYSQLHOST,
+        "database": MYSQLDATABASE,
+        "port": MYSQLPORT,
         "raise_on_warnings": False,
     }
 
@@ -43,9 +57,8 @@ def initDB():
       """
     )
 
-
     cursor.execute(
-    """
+        """
       CREATE TABLE IF NOT EXISTS tasks (
         task_id VARCHAR(36) PRIMARY KEY,
         project_id VARCHAR(36) NOT NULL,
