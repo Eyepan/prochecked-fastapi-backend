@@ -153,14 +153,15 @@ async def update_task(
         ),
     )
     result = cursor.fetchone()
-    if not task:
+    if not result:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": "task not found"}
-    title = task.title if task.title else result[2]
-    description = task.description if task.description else result[3]
-    due_date = task.due_date if task.due_date else result[4]
-    priority = task.priority if task.priority else result[5]
-    completed = task.completed if task.completed else result[6]
+    title = task.title if task.title is not None else result[2]
+    description = task.description if task.description is not None else result[3]
+    due_date = task.due_date if task.due_date is not None else result[4]
+    priority = task.priority if task.priority is not None else result[5]
+    completed = task.completed if task.completed is not None else result[6]
+    print(task)
 
     cursor.execute(
         "UPDATE tasks SET title = %s, description = %s, due_date = %s, priority = %s, completed = %s WHERE task_id = %s",

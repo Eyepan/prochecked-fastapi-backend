@@ -90,10 +90,10 @@ async def update_project(
     if not result:
         response.status_code = status.HTTP_404_NOT_FOUND
         return {"error": "project not found"}
-    title = project.title if project.title else result[2]
-    description = project.description if project.description else result[3]
-    created_at = project.created_at if project.created_at else result[4]
-    deadline = project.deadline if project.deadline else result[5]
+    title = project.title if project.title is not None else result[2]
+    description = project.description if project.description is not None else result[3]
+    created_at = project.created_at if project.created_at is not None else result[4]
+    deadline = project.deadline if project.deadline is not None else result[5]
     cursor.execute(
         "UPDATE projects SET title = %s, description = %s, created_at = %s, deadline = %s WHERE project_id = %s AND user_id = %s",
         (title, description, created_at, deadline, project_id, user_id),

@@ -1,6 +1,8 @@
+import bcrypt
 import mysql.connector
 import os
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
@@ -10,7 +12,6 @@ MYSQLHOST = os.environ.get("MYSQLHOST")
 MYSQLPASSWORD = os.environ.get("MYSQLPASSWORD")
 MYSQLPORT = os.environ.get("MYSQLPORT")
 MYSQLUSER = os.environ.get("MYSQLUSER")
-
 
 # Create config dictionary
 
@@ -71,7 +72,13 @@ def initDB():
       );
       """
     )
-
+    cursor.execute("CREATE TABLE  IF NOT EXISTS salt(salt VARCHAR(255) NOT NULL);")
     conn.commit()
+    cursor.execute("SELECT * FROM Salt")
+    result = cursor.fetchone()
+    if not result:
+        salt = bcrypt.gensalt()
+        cursor.execute("INSERT INTO Salt VALUES(%s)", (salt.decode("utf-8"),))
+        conn.commit()
     cursor.close()
     conn.close()

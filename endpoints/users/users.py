@@ -2,6 +2,8 @@ from fastapi import APIRouter, Response, status
 from database import connection
 from uuid import uuid4
 from endpoints.users.models import *
+import bcrypt
+
 
 router = APIRouter(prefix="/api/users")
 
@@ -18,7 +20,11 @@ async def create_user(user: NewUser, response: Response):
         conn.close()
         response.status_code = status.HTTP_409_CONFLICT
         return {"error": "email already exists"}
-
+    # get salt value from the salt table
+    cursor.execute("SELECT * FROM salt")
+    result = cursor.fetchone()
+    salt = result[0].encode("utf-8")
+    user.password = bcrypt.hashpw(user.password.encode("utf-8"), salt).decode("utf-8")
     cursor.execute(
         "INSERT INTO users(user_id, name, email, password) VALUES (%s, %s, %s, %s)",
         (id, user.name, user.email, user.password),
@@ -62,6 +68,10 @@ async def get_user(user_id: str):
 async def signin(user: UserAuth, response: Response):
     conn = connection()
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM salt")
+    result = cursor.fetchone()
+    salt = result[0].encode("utf-8")
+    user.password = bcrypt.hashpw(user.password.encode("utf-8"), salt)
     cursor.execute(
         "SELECT * FROM users WHERE email = %s AND password = %s",
         (
