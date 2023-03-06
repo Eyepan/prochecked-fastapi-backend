@@ -17,6 +17,7 @@ class Project(BaseModel):
     deadline: str
 
 
+# because no one could use just the project model
 class UpdateProject(BaseModel):
     title: Optional[str]
     description: Optional[str]

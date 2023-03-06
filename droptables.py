@@ -1,11 +1,12 @@
 import mysql.connector
+
 config = {
     "user": "root",
     "password": "",
     "host": "localhost",
     "database": "prochecked",
     "port": 3306,
-    "raise_on_warnings": False
+    "raise_on_warnings": False,
 }
 
 
@@ -13,6 +14,7 @@ mysql = mysql.connector.connect(**config)
 
 cursor = mysql.cursor()
 
+# nope, not touching this
 cursor.execute("SET FOREIGN_KEY_CHECKS=0")
 
 cursor.execute("SHOW TABLES")

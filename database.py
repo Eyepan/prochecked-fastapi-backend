@@ -75,6 +75,7 @@ def initDB():
     cursor.execute("CREATE TABLE  IF NOT EXISTS salt(salt VARCHAR(255) NOT NULL);")
     conn.commit()
     cursor.execute("SELECT * FROM Salt")
+    # TODO: this is dumb
     result = cursor.fetchone()
     if not result:
         salt = bcrypt.gensalt()

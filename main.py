@@ -24,6 +24,7 @@ app.include_router(tasks.router)
 
 @app.on_event("startup")
 async def init():
+    # magical voodoo shit that somehow makes it work
     initDB()
 
 

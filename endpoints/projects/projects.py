@@ -70,6 +70,7 @@ async def add_user_project(user_id: str, project: NewProject, response: Response
     )
     conn.commit()
     cursor.execute("SELECT * FROM projects WHERE project_id = %s", (id,))
+    # TODO: making too many sql calls, this is dumb.
     result = cursor.fetchone()
     cursor.close()
     conn.close()
