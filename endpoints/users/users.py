@@ -21,7 +21,7 @@ async def create_user(user: NewUser, response: Response):
         response.status_code = status.HTTP_409_CONFLICT
         return {"error": "email already exists"}
     # get salt value from the salt table
-    cursor.execute("SELECT * FROM salt")
+    cursor.execute("SELECT * FROM Salt")
     result = cursor.fetchone()
     salt = result[0].encode("utf-8")
     user.password = bcrypt.hashpw(user.password.encode("utf-8"), salt).decode("utf-8")
@@ -68,7 +68,7 @@ async def get_user(user_id: str):
 async def signin(user: UserAuth, response: Response):
     conn = connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM salt")
+    cursor.execute("SELECT * FROM Salt")
     result = cursor.fetchone()
     salt = result[0].encode("utf-8")
     user.password = bcrypt.hashpw(user.password.encode("utf-8"), salt)
@@ -96,7 +96,7 @@ async def update_user(user_id: str, user: UpdateUser, response: Response):
     cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
     result = cursor.fetchone()
     if result:
-        cursor.execute("SELECT * FROM salt")
+        cursor.execute("SELECT * FROM Salt")
         result = cursor.fetchone()
         salt = result[0].encode("utf-8")
         user.password = bcrypt.hashpw(user.password.encode("utf-8"), salt)
