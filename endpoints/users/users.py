@@ -90,9 +90,38 @@ async def signin(user: UserAuth, response: Response):
 
 
 @router.put("/{user_id}")
-async def update_user(user: NewUser, response: Response):
-    response.status_code = status.HTTP_501_NOT_IMPLEMENTED
-    return {"error": "not implemented yet"}
+async def update_user(user_id: str, user: UpdateUser, response: Response):
+    conn = connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+    result = cursor.fetchone()
+    if result:
+        cursor.execute("SELECT * FROM salt")
+        result = cursor.fetchone()
+        salt = result[0].encode("utf-8")
+        user.password = bcrypt.hashpw(user.password.encode("utf-8"), salt)
+        user.newPassword = bcrypt.hashpw(user.newPassword.encode("utf-8"), salt)
+        cursor.execute(
+            "UPDATE users SET name = %s, email = %s, password = %s WHERE user_id = %s AND password = %s",
+            (
+                user.name,
+                user.email,
+                user.newPassword.decode("utf-8"),
+                user_id,
+                user.password.decode("utf-8"),
+            ),
+        )
+        conn.commit()
+        cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
+        result = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return dict(zip(user_model, result))
+    else:
+        cursor.close()
+        conn.close()
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"error": "user not found"}
 
 
 @router.delete("/{user_id}")

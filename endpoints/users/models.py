@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -19,13 +20,11 @@ class User(BaseModel):
     password: str
 
 
-class NewTask(BaseModel):
-    project_id: str
-    title: str
-    description: str
-    due_date: str
-    priority: int
-    completed: int
+class UpdateUser(BaseModel):
+    name: str
+    email: str
+    password: str
+    newPassword: str
 
 
 user_model = ["user_id", "name", "email", "password"]

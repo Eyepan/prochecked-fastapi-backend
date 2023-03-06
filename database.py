@@ -71,13 +71,10 @@ def initDB():
         FOREIGN KEY (project_id) REFERENCES projects(project_id) ON DELETE CASCADE
       );
       """
-        # ON DELETE CASCADE BECAUSE IT SINGULARLY FUCKS
-        # OVER EVERY TASK THAT'S CREATED FOR A PROJECT YAY
     )
     cursor.execute("CREATE TABLE  IF NOT EXISTS salt(salt VARCHAR(255) NOT NULL);")
     conn.commit()
     cursor.execute("SELECT * FROM Salt")
-    # TODO: this is dumb
     result = cursor.fetchone()
     if not result:
         salt = bcrypt.gensalt()
