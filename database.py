@@ -72,7 +72,7 @@ def initDB():
       );
       """
     )
-    cursor.execute("CREATE TABLE  IF NOT EXISTS salt(salt VARCHAR(255) NOT NULL);")
+    cursor.execute("CREATE TABLE IF NOT EXISTS Salt (salt VARCHAR(255) NOT NULL);")
     conn.commit()
     cursor.execute("SELECT * FROM Salt")
     result = cursor.fetchone()
